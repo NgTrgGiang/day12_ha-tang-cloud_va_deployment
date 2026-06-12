@@ -1,7 +1,7 @@
 # Day 12 Lab — Mission Answers
 
-> **Họ tên:** [ĐIỀN TÊN BẠN]
-> **MSSV:** [ĐIỀN MSSV]
+> **Họ tên:** Nguyễn Trường Giang   
+> **MSSV:** 2A202600624 
 > **Ngày:** 2026-06-12
 
 ---
@@ -50,15 +50,13 @@
 
 ### Exercise 3.1: Deploy lên Cloud (dùng Render thay cho Railway)
 
-> Railway đã hết free trial nên em deploy lên **Render** (cũng là 1 trong các platform của bài). Chi tiết đầy đủ trong `DEPLOYMENT.md`.
-
 - **Platform:** Render (Free, region Singapore, runtime Docker, Root Directory = `06-lab-complete`)
 - **Public URL:** https://day12-ha-tang-cloud-va-deployment-axaq.onrender.com
 - **Kiểm chứng (chạy thật):**
   - `GET /health` → 200, `environment: production`
   - `POST /ask` không có key → **401** (bị chặn)
   - `POST /ask` có header `X-API-Key` → **200** + agent trả lời
-- **Screenshot:** `[BẠN TỰ CHỤP - dashboard Render "Live" + kết quả test, lưu vào thư mục screenshots/]`
+- **Screenshot:** 
 
 ### Exercise 3.2: So sánh `render.yaml` và `railway.toml`
 

@@ -1,0 +1,18 @@
+# Blueprint deploy lên Render (gói Free, runtime Docker).
+services:
+  - type: web
+    name: faq-chatbot-agent
+    runtime: docker
+    region: singapore
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: API_KEY
+        generateValue: true        # Render tự sinh key ngẫu nhiên an toàn
+      - key: RATE_LIMIT_PER_MINUTE
+        value: "15"
+      - key: DAILY_BUDGET_USD
+        value: "2.0"

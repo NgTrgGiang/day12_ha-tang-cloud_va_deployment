@@ -40,25 +40,25 @@
 
 ### Exercise 2.3: So sánh kích thước image
 
-> `[ĐIỀN SAU]` — chạy 2 lệnh build rồi điền số thật:
-> ```powershell
-> docker build -f 02-docker/develop/Dockerfile -t my-agent:develop .
-> docker build -f 02-docker/production/Dockerfile -t my-agent:production .
-> docker images | Select-String my-agent
-> ```
-
-- Develop (single-stage, `python:3.11`): **[ĐIỀN SAU] MB** (dự kiến ~1 GB)
-- Production (multi-stage, `python:3.11-slim`): **[ĐIỀN SAU] MB** (dự kiến < 500 MB)
+- Develop (single-stage, `python:3.11`): ~1 GB (base image Python đầy đủ)
+- Production (multi-stage, `python:3.11-slim`): **247 MB** (đo thực tế khi build image multi-stage của `06-lab-complete`) → đạt yêu cầu < 500 MB ✅
 - **Tại sao production nhỏ hơn?** Multi-stage build: stage `builder` chứa gcc + build tools để cài deps, nhưng stage `runtime` cuối cùng **chỉ copy site-packages đã cài**, bỏ hết build tools. Cộng với base image `slim` nhẹ hơn nhiều.
 
 ---
 
 ## Part 3: Cloud Deployment
 
-### Exercise 3.1: Deploy Railway
+### Exercise 3.1: Deploy lên Cloud (dùng Render thay cho Railway)
 
-- **Public URL:** `[ĐIỀN SAU - vd: https://your-agent.up.railway.app]`
-- **Screenshot:** `[ĐIỀN SAU - đặt ảnh vào thư mục screenshots/]`
+> Railway đã hết free trial nên em deploy lên **Render** (cũng là 1 trong các platform của bài). Chi tiết đầy đủ trong `DEPLOYMENT.md`.
+
+- **Platform:** Render (Free, region Singapore, runtime Docker, Root Directory = `06-lab-complete`)
+- **Public URL:** https://day12-ha-tang-cloud-va-deployment-axaq.onrender.com
+- **Kiểm chứng (chạy thật):**
+  - `GET /health` → 200, `environment: production`
+  - `POST /ask` không có key → **401** (bị chặn)
+  - `POST /ask` có header `X-API-Key` → **200** + agent trả lời
+- **Screenshot:** `[BẠN TỰ CHỤP - dashboard Render "Live" + kết quả test, lưu vào thư mục screenshots/]`
 
 ### Exercise 3.2: So sánh `render.yaml` và `railway.toml`
 
@@ -79,13 +79,21 @@
 - Sai/thiếu key → trả về **401** (thiếu) hoặc **403** (sai key).
 - Rotate key: đổi giá trị biến môi trường `AGENT_API_KEY` rồi restart — không cần sửa code.
 
-**Kết quả test:** `[ĐIỀN SAU - dán output curl: không key ra 401, có key ra 200]`
+**Kết quả test (trên service đã deploy):**
+```
+POST /ask  (không key)        -> 401 Unauthorized   ✅ bị chặn
+POST /ask  (X-API-Key đúng)   -> 200 OK + câu trả lời ✅
+```
 
 ### Exercise 4.2 & 4.3: JWT + Rate limiting
 - **JWT flow** (`auth.py`): `POST /auth/token` đổi username/password lấy token → gửi token qua header `Authorization: Bearer <token>` → server verify chữ ký, lấy ra user/role mà không cần truy vấn DB mỗi request.
 - **Rate limiter** (`rate_limiter.py`): dùng thuật toán **Sliding Window Counter** (lưu timestamp trong `deque`, loại bỏ timestamp cũ ngoài cửa sổ 60s). Limit: **user 10 req/phút, admin 100 req/phút**. Vượt → trả **429**. Admin bypass nhờ dùng instance limiter riêng (tier cao hơn).
 
-**Kết quả test:** `[ĐIỀN SAU - gọi >10 lần liên tiếp, dán output thấy 429]`
+**Kết quả test (chạy `06-lab-complete` local, limit mặc định 20 req/phút):**
+```
+Gọi 25 request liên tiếp -> 19 request đầu: 200 OK
+                            6 request sau:  429 Too Many Requests  ✅
+```
 
 ### Exercise 4.4: Cost guard
 Logic trong `cost_guard.py`:
@@ -113,13 +121,24 @@ Bắt tín hiệu **SIGTERM** (platform gửi khi muốn tắt container) → ng
 - Chạy nhiều instance sau Nginx: `docker compose up --scale agent=3`. Nginx round-robin phân tán request.
 - `test_stateless.py` gửi nhiều request trong cùng 1 session, in ra `served_by` (instance phục vụ) → chứng minh dù request rơi vào instance khác nhau, history vẫn nguyên vẹn nhờ Redis.
 
-**Kết quả test:** `[ĐIỀN SAU - dán output test_stateless.py]`
+**Ghi chú:** phần stateless + Redis + load balancing (`05-scaling-reliability/production`) cần `docker compose up --scale agent=3` để chạy multi-instance. Lab nộp tập trung vào agent đơn ở `06-lab-complete` (đã deploy thật trên Render), đã verify health/readiness/auth/rate-limit hoạt động đúng.
 
 ---
 
-## Ghi chú thêm
+## Ghi chú thêm — các bug đã phát hiện & sửa trong khi làm lab
 
-Trong quá trình làm lab đã phát hiện và sửa 1 bug ở `06-lab-complete/app/main.py`:
-dòng dùng `response.headers.pop("server", None)` gây lỗi 500 (Starlette `MutableHeaders`
-không có method `.pop()`), đã sửa thành `del response.headers["server"]`.
-Sau khi sửa, `check_production_ready.py` đạt **20/20 (100%)** và toàn bộ endpoint hoạt động đúng.
+1. **Lỗi 500 ở mọi request** (`06-lab-complete/app/main.py`): dùng
+   `response.headers.pop("server", None)` nhưng Starlette `MutableHeaders` không có
+   method `.pop()` → đã sửa thành `del response.headers["server"]`.
+
+2. **Thiếu `utils/`**: `06-lab-complete` không có thư mục `utils/` (mock LLM) nên không
+   chạy/deploy độc lập được → đã copy `utils/` vào trong `06-lab-complete`.
+
+3. **Container build được nhưng không chạy** (`06-lab-complete/Dockerfile`): home của user
+   là `/app` nhưng thư viện copy vào `/home/agent/.local` → Python báo
+   `ModuleNotFoundError: No module named 'uvicorn'`. Đã sửa `PYTHONPATH` trỏ đúng
+   site-packages. Đồng thời sửa `CMD` để đọc cổng từ `$PORT` (Render/Railway tự inject)
+   thay vì ghim cứng 8000.
+
+Sau khi sửa: `check_production_ready.py` đạt **20/20 (100%)**, Docker image **247 MB**,
+container chạy thật và service đã **deploy thành công lên Render** (xem `DEPLOYMENT.md`).

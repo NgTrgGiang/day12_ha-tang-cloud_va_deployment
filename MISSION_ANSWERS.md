@@ -50,12 +50,15 @@
 
 ### Exercise 3.1: Deploy lên Cloud (dùng Render thay cho Railway)
 
-- **Platform:** Render (Free, region Singapore, runtime Docker, Root Directory = `06-lab-complete`)
-- **Public URL:** https://day12-ha-tang-cloud-va-deployment-axaq.onrender.com
+> Agent nộp bài là **FAQ Chatbot Agent** em tự xây ở thư mục `faq-chatbot-agent/`
+> (không dùng bài giải mẫu `06-lab-complete`). Chi tiết trong `DEPLOYMENT.md`.
+
+- **Platform:** Render (Free, region Singapore, runtime Docker, Root Directory = `faq-chatbot-agent`)
+- **Public URL:** https://faq-chatbot-agent.onrender.com
 - **Kiểm chứng (chạy thật):**
-  - `GET /health` → 200, `environment: production`
-  - `POST /ask` không có key → **401** (bị chặn)
-  - `POST /ask` có header `X-API-Key` → **200** + agent trả lời
+  - `GET /health` → 200, `env: production`
+  - `POST /chat` không có key → **401** (bị chặn)
+  - `POST /chat` có header `X-API-Key` → **200** + trả lời FAQ
 - **Screenshot:** 
 
 ### Exercise 3.2: So sánh `render.yaml` và `railway.toml`
